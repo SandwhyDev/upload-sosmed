@@ -40,12 +40,13 @@ export function assertLocalRequest(
     const expected = process.env.RUANG_PROXY_SECRET ?? "";
     const provided = request.headers.get("x-ruang-proxy-secret") ?? "";
     const secretPattern = /^[a-f0-9]{64}$/;
-    if (!secretPattern.test(expected))
+    if (expected && !secretPattern.test(expected))
       throw new AppError("Konfigurasi akses reverse proxy belum lengkap.", 503);
     if (
       host !== new URL(publicOrigin).host ||
-      !secretPattern.test(provided) ||
-      !timingSafeEqual(Buffer.from(expected), Buffer.from(provided))
+      (expected &&
+        (!secretPattern.test(provided) ||
+          !timingSafeEqual(Buffer.from(expected), Buffer.from(provided))))
     )
       throw new AppError("Akses melalui reverse proxy diperlukan.", 403);
   } else if (!allowed.has(hostUrl.hostname) || !allowed.has(url.hostname))

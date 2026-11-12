@@ -21,9 +21,9 @@ Jika sudah memiliki PostgreSQL, isi `DATABASE_URL` pada `.env.local`; dev akan m
 
 Jalankan PostgreSQL, web (`npm run start -- --port 3005`), dan satu worker (`npm run worker`) di VPS. Siapkan `DATABASE_URL` dan build aplikasi terlebih dahulu. Web tetap mendengarkan di `127.0.0.1`.
 
-Di `.env.local`, isi `APP_ORIGIN=https://content.example.com` dan `RUANG_PROXY_SECRET` dengan hasil `openssl rand -hex 32`. Ganti contoh domain dengan domain Anda. Untuk Instagram, daftarkan `https://content.example.com/api/accounts/instagram/callback` di Meta dan isi `INSTAGRAM_REDIRECT_URI` dengan URL yang sama.
+Di `.env.local`, isi `APP_ORIGIN=https://content.example.com`. Ganti contoh domain dengan domain Anda. Untuk Instagram, daftarkan `https://content.example.com/api/accounts/instagram/callback` di Meta dan isi `INSTAGRAM_REDIRECT_URI` dengan URL yang sama.
 
-Lindungi seluruh domain dengan autentikasi di reverse proxy. Proxy harus meneruskan `Host` asli dan menimpa header `X-Ruang-Proxy-Secret` dengan secret yang sama. Contoh Caddyfile setelah membuat hash dengan `caddy hash-password`:
+Proxy harus meneruskan `Host` asli. Di Apache, tambahkan `ProxyPreserveHost On` pada VirtualHost HTTPS. `RUANG_PROXY_SECRET` opsional. Jika diisi dengan hasil `openssl rand -hex 32`, proxy harus menimpa header `X-Ruang-Proxy-Secret` dengan nilai tersebut. Batasi akses domain di proxy sebelum menghubungkan akun. Contoh Caddyfile dengan Basic Auth:
 
 ```caddyfile
 content.example.com {
@@ -31,13 +31,12 @@ content.example.com {
         admin GANTI_DENGAN_HASH_PASSWORD
     }
     reverse_proxy 127.0.0.1:3005 {
-        header_up X-Ruang-Proxy-Secret GANTI_DENGAN_RUANG_PROXY_SECRET
         header_up -Authorization
     }
 }
 ```
 
-Simpan secret di konfigurasi proxy pada server. Setelah memperbarui kode dan `.env.local`, jalankan `npm run build`, restart proses web dan worker, lalu muat ulang konfigurasi proxy. Untuk OAuth, jalankan satu proses web karena sesi sementara disimpan dalam memori proses tersebut.
+Setelah memperbarui kode dan `.env.local`, jalankan `npm run build`, restart proses web dan worker, lalu muat ulang konfigurasi proxy. Untuk OAuth, jalankan satu proses web karena sesi sementara disimpan dalam memori proses tersebut.
 
 ## Alur penggunaan
 
