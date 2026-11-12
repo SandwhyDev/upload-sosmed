@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="id">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex, nofollow">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-aPaoJLbU5paYOnFSrMiFiKRY0/HseSszAOGtU/bzXJU='; base-uri 'none'; form-action 'none'">
+  <title>Kembali ke Ruang Konten</title>
+  <p id="status">Menyelesaikan koneksi Instagram…</p>
+  <noscript>Aktifkan JavaScript, lalu mulai ulang koneksi dari Ruang Konten.</noscript>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const state = params.get('state');
+    const code = params.get('code');
+    const validState = params.getAll('state').length === 1 && /^[\w-]{43}$/.test(state || '');
+    const validCode = params.getAll('code').length === 1 && code && code.length <= 4096;
+    if (validState && (params.has('error') || validCode)) {
+      const callback = new URL('http://127.0.0.1:3000/api/accounts/instagram/callback');
+      callback.searchParams.set('state', state);
+      if (params.has('error')) callback.searchParams.set('error', 'access_denied');
+      else callback.searchParams.set('code', code);
+      window.location.replace(callback.href);
+    } else {
+      document.getElementById('status').textContent = 'Sesi Instagram tidak valid. Mulai kembali dari Ruang Konten.';
+    }
+  </script>
+</html>

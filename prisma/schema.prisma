@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+datasource db {
+  provider = "postgresql"
+}
+model Account {
+  platform   String @id
+  label      String
+  externalId String
+  loginType  String @default("facebook")
+  secret     String
+  status     String @default("UNVERIFIED")
+  message    String @default("Belum diperiksa")
+  checkedAt  DateTime?
+  updatedAt  DateTime @updatedAt
+}
+model Media {
+  id        String @id @default(uuid())
+  name      String
+  mime      String
+  size      Int
+  width     Int?
+  height    Int?
+  duration  Float?
+  codec     String?
+  audioCodec String?
+  createdAt DateTime @default(now())
+  drafts    Draft[]
+}
+model Draft {
+  id        String @id @default(uuid())
+  title     String
+  caption   String @default("")
+  platforms String[]
+  variants  Json
+  youtube   Json
+  mediaId   String?
+  media     Media? @relation(fields: [mediaId], references: [id])
+  version   Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  reviews   Review[]
+  batches   Batch[]
+}
+model Review {
+  id        String @id @default(uuid())
+  draftId   String
+  draft     Draft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  version   Int
+  snapshot  Json
+  createdAt DateTime @default(now())
+  batch     Batch?
+}
+model Batch {
+  id        String @id @default(uuid())
+  reviewId  String @unique
+  review    Review @relation(fields: [reviewId], references: [id])
+  draftId   String
+  draft     Draft @relation(fields: [draftId], references: [id])
+  title     String
+  createdAt DateTime @default(now())
+  jobs      PublicationJob[]
+}
+model PublicationJob {
+  id          String @id @default(uuid())
+  batchId     String
+  batch       Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  platform    String
+  externalAccountId String
+  accountLabel String
+  snapshot    Json
+  state       String @default("QUEUED")
+  message     String @default("Menunggu worker")
+  externalId  String?
+  externalUrl String?
+  checkpoint  Json?
+  attempts    Int @default(0)
+  availableAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@unique([batchId, platform])
+  @@index([state, availableAt])
+}
+model WorkerHeartbeat {
+  id        String @id @default("publisher")
+  updatedAt DateTime @updatedAt
+}
