@@ -8,6 +8,7 @@ export const platforms = [
 ] as const;
 export type Platform = (typeof platforms)[number];
 export const youtubeOAuthCallbackPath = "/api/accounts/youtube/callback";
+export const instagramPopupSessionKey = "ruang.instagram.popup";
 export const linkedinOAuthCallbackPath = "/api/accounts/linkedin/callback";
 export type MetaPlatform = "instagram" | "facebook";
 export type MetaAccountChoice = {

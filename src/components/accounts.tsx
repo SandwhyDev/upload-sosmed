@@ -13,6 +13,7 @@ import { api } from "@/lib/client";
 import {
   platforms,
   platformNames,
+  instagramPopupSessionKey,
   linkedinOAuthCallbackPath,
   youtubeOAuthCallbackPath,
   type AccountInfo,
@@ -135,14 +136,59 @@ function AccountCard({
     }
   }
   async function connectInstagram() {
+    let popup: Window | null = null;
+    let channel: BroadcastChannel | undefined;
+    if (typeof BroadcastChannel !== "undefined") {
+      popup = window.open("", "_blank", "popup,width=610,height=690");
+      if (popup) {
+        try {
+          const channelName = `${instagramPopupSessionKey}.${crypto.randomUUID()}`;
+          popup.opener = null;
+          popup.sessionStorage.setItem(instagramPopupSessionKey, channelName);
+          popup.document.title = "Hubungkan Instagram";
+          popup.document.body.textContent = "Membuka login Instagram…";
+          channel = new BroadcastChannel(channelName);
+        } catch {
+          popup.close();
+          popup = null;
+        }
+      }
+    }
     setBusy("oauth");
     try {
       const { authorizationUrl } = await api<{ authorizationUrl: string }>(
         "accounts/instagram/oauth",
         "POST",
       );
-      window.location.assign(authorizationUrl);
+      if (!popup || !channel) {
+        channel?.close();
+        window.location.assign(authorizationUrl);
+        return;
+      }
+      if (popup.closed) {
+        channel.close();
+        setBusy("");
+        return;
+      }
+      const connection = channel;
+      const timeout = window.setTimeout(() => connection.close(), 10 * 60_000);
+      connection.onmessage = ({ data }) => {
+        if (data?.result !== "connected" && data?.result !== "error") return;
+        window.clearTimeout(timeout);
+        connection.close();
+        const success = data.result === "connected";
+        if (typeof data.message === "string")
+          notify(data.message.slice(0, 300), !success);
+        if (success) {
+          setEditing(false);
+          void onChange().catch((error) => notify((error as Error).message, true));
+        }
+      };
+      popup.location.replace(authorizationUrl);
+      setBusy("");
     } catch (error) {
+      popup?.close();
+      channel?.close();
       notify((error as Error).message, true);
       setBusy("");
     }

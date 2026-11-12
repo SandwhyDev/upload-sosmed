@@ -30,6 +30,7 @@ import {
 import { api, formatSize } from "@/lib/client";
 import {
   captionFor,
+  instagramPopupSessionKey,
   newDraft,
   platformNames,
   platforms,
@@ -107,6 +108,20 @@ export default function Studio() {
     const result = url.searchParams.get(`${platform}_oauth`);
     if (result !== "connected" && result !== "error") return;
     const message = url.searchParams.get(`${platform}_message`);
+    if (platform === "instagram" && typeof BroadcastChannel !== "undefined") {
+      try {
+        const channelName = sessionStorage.getItem(instagramPopupSessionKey);
+        if (channelName) {
+          sessionStorage.removeItem(instagramPopupSessionKey);
+          const channel = new BroadcastChannel(channelName);
+          channel.postMessage({ result, message });
+          channel.close();
+          window.close();
+        }
+      } catch {
+        // The account page below also works when browser storage is unavailable.
+      }
+    }
     setView("accounts");
     if (message) notify(message.slice(0, 300), result === "error");
     url.searchParams.delete(`${platform}_oauth`);
