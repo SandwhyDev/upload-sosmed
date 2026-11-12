@@ -17,6 +17,28 @@ Buka [http://127.0.0.1:3000](http://127.0.0.1:3000). Perintah dev menyiapkan Pos
 
 Jika sudah memiliki PostgreSQL, isi `DATABASE_URL` pada `.env.local`; dev akan menggunakan database tersebut. Database tujuan harus dikhususkan untuk aplikasi ini. `prisma db push` menyinkronkan skema pengembangan dan tidak memakai flag penghapusan data.
 
+## Menjalankan di VPS lewat domain HTTPS
+
+Jalankan PostgreSQL, web (`npm run start -- --port 3005`), dan satu worker (`npm run worker`) di VPS. Siapkan `DATABASE_URL` dan build aplikasi terlebih dahulu. Web tetap mendengarkan di `127.0.0.1`.
+
+Di `.env.local`, isi `APP_ORIGIN=https://content.example.com` dan `RUANG_PROXY_SECRET` dengan hasil `openssl rand -hex 32`. Ganti contoh domain dengan domain Anda. Untuk Instagram, daftarkan `https://content.example.com/api/accounts/instagram/callback` di Meta dan isi `INSTAGRAM_REDIRECT_URI` dengan URL yang sama.
+
+Lindungi seluruh domain dengan autentikasi di reverse proxy. Proxy harus meneruskan `Host` asli dan menimpa header `X-Ruang-Proxy-Secret` dengan secret yang sama. Contoh Caddyfile setelah membuat hash dengan `caddy hash-password`:
+
+```caddyfile
+content.example.com {
+    basic_auth {
+        admin GANTI_DENGAN_HASH_PASSWORD
+    }
+    reverse_proxy 127.0.0.1:3005 {
+        header_up X-Ruang-Proxy-Secret GANTI_DENGAN_RUANG_PROXY_SECRET
+        header_up -Authorization
+    }
+}
+```
+
+Simpan secret di konfigurasi proxy pada server. Setelah memperbarui kode dan `.env.local`, jalankan `npm run build`, restart proses web dan worker, lalu muat ulang konfigurasi proxy. Untuk OAuth, jalankan satu proses web karena sesi sementara disimpan dalam memori proses tersebut.
+
 ## Alur penggunaan
 
 1. Buka **Akun terhubung**. Pilih **Hubungkan dengan Instagram** untuk masuk dan memberi izin di Instagram. Untuk Facebook atau koneksi Instagram manual, tempel token lalu klik **Deteksi akun**, pilih tujuan, dan klik **Simpan akun**.

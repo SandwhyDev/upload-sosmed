@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { AppError } from "./security";
+import { AppError, httpsOrigin } from "./security";
 
 type OAuthPlatform = "youtube" | "instagram" | "linkedin";
 const lifetime = 600;
@@ -20,7 +20,7 @@ export function createOAuthSession<T>(platform: OAuthPlatform) {
   const browserKey = (request: Request) =>
     request.headers.get("cookie")?.match(cookiePattern)?.[1];
   const cookie = (key: string, age: number) =>
-    `${cookieName}=${key}; Max-Age=${age}; Path=/api/accounts/${platform}; HttpOnly; SameSite=Lax`;
+    `${cookieName}=${key}; Max-Age=${age}; Path=/api/accounts/${platform}; HttpOnly; SameSite=Lax${httpsOrigin() ? "; Secure" : ""}`;
 
   return {
     begin(request: Request, data: T, expectedUpdatedAt: number | null) {
@@ -57,7 +57,7 @@ export function createOAuthSession<T>(platform: OAuthPlatform) {
       const entry = key ? pending.get(key) : undefined;
       const url = new URL(request.url);
       const host = request.headers.get("host") ?? url.host;
-      const origin = new URL(`http://${host}`).origin;
+      const origin = httpsOrigin() ?? new URL(`http://${host}`).origin;
       if (
         !key ||
         !entry ||

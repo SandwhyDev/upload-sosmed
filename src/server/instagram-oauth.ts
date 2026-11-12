@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AppError } from "./security";
+import { AppError, httpsOrigin } from "./security";
 import { createOAuthSession } from "./oauth-session";
 
 const localOrigin = "http://127.0.0.1:3000";
@@ -51,11 +51,15 @@ export function startInstagramOAuth(
     throw new AppError(
       "Isi Meta App ID, Meta App Secret, Instagram Configuration ID, dan Redirect URI di .env.local. Lihat panduan Unified Login di README.",
     );
-  if (request.headers.get("origin") !== localOrigin)
+  const publicOrigin = httpsOrigin();
+  const origin = publicOrigin ?? localOrigin;
+  if (request.headers.get("origin") !== origin)
     throw new AppError(
-      "Buka http://127.0.0.1:3000 untuk menghubungkan Instagram.",
+      `Buka ${origin} untuk menghubungkan Instagram.`,
     );
   const { appId, configId, redirectUri } = configured.data;
+  if (publicOrigin && redirectUri !== `${publicOrigin}/api/accounts/instagram/callback`)
+    throw new AppError("Samakan INSTAGRAM_REDIRECT_URI dengan callback Instagram pada domain aplikasi.");
   const { state, headers } = instagramOAuth.begin(
     request,
     configured.data,

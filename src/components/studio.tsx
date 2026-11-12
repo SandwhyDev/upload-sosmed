@@ -423,12 +423,8 @@ export default function Studio() {
           {loadError ? (
             <div className="connection-error" role="alert">
               <TriangleAlert size={27} />
-              <h1>Database belum terhubung</h1>
+              <h1>Ruang kerja belum bisa dimuat</h1>
               <p>{loadError}</p>
-              <p>
-                Jalankan aplikasi dengan <code>npm run dev</code> untuk
-                menyiapkan database dan worker lokal.
-              </p>
               <button
                 className="button"
                 onClick={() => refresh().catch((e) => setLoadError(e.message))}

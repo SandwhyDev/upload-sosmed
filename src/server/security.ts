@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, randomBytes, timingSafeEqual } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 // Runtime user data must not be traced into the application build.
@@ -13,6 +13,15 @@ export class AppError extends Error {
     super(message);
   }
 }
+export function httpsOrigin() {
+  const value = process.env.APP_ORIGIN?.trim();
+  if (!value) return null;
+  const url = URL.canParse(value) ? new URL(value) : null;
+  if (!url || (url.protocol === "https:" && value !== url.origin))
+    throw new AppError("APP_ORIGIN harus berupa origin HTTPS tanpa path.", 500);
+  return url.protocol === "https:" ? url.origin : null;
+}
+
 export function assertLocalRequest(
   request: Request,
   allowOAuthRedirect = false,
@@ -26,7 +35,20 @@ export function assertLocalRequest(
   } catch {
     throw new AppError("Host tidak diizinkan.", 403);
   }
-  if (!allowed.has(hostUrl.hostname) || !allowed.has(url.hostname))
+  const publicOrigin = httpsOrigin();
+  if (publicOrigin) {
+    const expected = process.env.RUANG_PROXY_SECRET ?? "";
+    const provided = request.headers.get("x-ruang-proxy-secret") ?? "";
+    const secretPattern = /^[a-f0-9]{64}$/;
+    if (!secretPattern.test(expected))
+      throw new AppError("Konfigurasi akses reverse proxy belum lengkap.", 503);
+    if (
+      host !== new URL(publicOrigin).host ||
+      !secretPattern.test(provided) ||
+      !timingSafeEqual(Buffer.from(expected), Buffer.from(provided))
+    )
+      throw new AppError("Akses melalui reverse proxy diperlukan.", 403);
+  } else if (!allowed.has(hostUrl.hostname) || !allowed.has(url.hostname))
     throw new AppError("Aplikasi hanya tersedia di localhost.", 403);
   const origin = request.headers.get("origin");
   const site = request.headers.get("sec-fetch-site");
@@ -35,7 +57,7 @@ export function assertLocalRequest(
     !(allowOAuthRedirect && request.method === "GET")
   )
     throw new AppError("Request lintas situs ditolak.", 403);
-  if (origin && origin !== hostUrl.origin)
+  if (origin && origin !== (publicOrigin ?? hostUrl.origin))
     throw new AppError("Origin tidak diizinkan.", 403);
   if (
     !["GET", "HEAD", "OPTIONS"].includes(request.method) &&
